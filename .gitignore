@@ -1,0 +1,5 @@
+*._pyc
+.DS_Store
+
+producers/venv/
+__pycache__/
