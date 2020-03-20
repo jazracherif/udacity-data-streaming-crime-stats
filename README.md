@@ -4,7 +4,7 @@
 
 I use `maxOffsetsPerTrigger` to impact the throughput and latency of the data.
 
-The higher this value is, the more rows are processed per seconds but also the more delay increases.
+The higher this value is, the more rows are processed per seconds.
 
 I monitor the performance using the progressReport parameters `inputRowsPerSecond`, `processedRowsPerSecond` and `durationMs`, specifically the value of `triggerExecution`
 
