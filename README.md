@@ -40,3 +40,7 @@ In the above comparison, both batches take about similar time to execute (`trigg
 
 ## What were the 2-3 most efficient SparkSession property key/value pairs? Through testing multiple variations on values, how can you tell these were the most optimal?
 
+I found that a small value for `spark.sql.shuffle.partitions` (such as 25) dramatically increases the value of `processedRowsPerSecond` to 126.
+
+By setting `spark.default.parallelism` to 100 i'm able to push the value of `processedRowsPerSecond` up to 131
+

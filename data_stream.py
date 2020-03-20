@@ -26,14 +26,16 @@ schema = StructType([
 
 def run_spark_job(spark):
 
+    # Update configuration
+    spark.conf.set("spark.executor.memory", '8g')
+    spark.conf.set("spark.executor.cores", '2')
+    spark.conf.set("spark.default.parallelism", "100")
+    spark.conf.set("spark.sql.shuffle.partitions", "10")
+    
     # TODO Create Spark Configuration
     # Create Spark configurations with max offset of 200 per trigger
-    # set up correct bootstrap server and port
+    # set up correct bootstrap server and port    
     
-    spark.conf.set("spark.executor.memory", '8g')
-    spark.conf.set('spark.executor.cores', '3')
-
-#     spark.conf.set('spark.cores.max', '3')
     df = spark \
         .readStream \
         .format("kafka") \
@@ -111,6 +113,7 @@ def run_spark_job(spark):
                        .trigger(processingTime=PROCESSING_TIME)\
                        .start()
 
+#     query.awaitTermination()
     join_query.awaitTermination()
 
 
@@ -125,7 +128,8 @@ if __name__ == "__main__":
         .config("spark.ui.port", "3000") \
         .getOrCreate()
 
-    spark.sparkContext.setLogLevel("WARN")
+
+    spark.sparkContext.setLogLevel("INFO")
     
     logger.info("Spark started")
 
