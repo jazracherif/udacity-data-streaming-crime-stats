@@ -4,6 +4,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import *
 import pyspark.sql.functions as psf
 
+PROCESSING_TIME = '15 seconds'
 
 # TODO Create a schema for incoming resources
 schema = StructType([
@@ -28,14 +29,21 @@ def run_spark_job(spark):
     # TODO Create Spark Configuration
     # Create Spark configurations with max offset of 200 per trigger
     # set up correct bootstrap server and port
+    
+    spark.conf.set("spark.executor.memory", '8g')
+    spark.conf.set('spark.executor.cores', '3')
+
+#     spark.conf.set('spark.cores.max', '3')
     df = spark \
         .readStream \
         .format("kafka") \
         .option("subscribe", "com.police.reports") \
         .option("kafka.bootstrap.servers", "localhost:9092") \
         .option("startingOffsets", "earliest") \
-        .option("maxOffsetsPerTrigger", 100) \
+        .option("maxOffsetsPerTrigger", 200) \
         .option("stopGracefullyOnShutdown", "true") \
+        .option("maxRatePerPartition", 10) \
+        .option("backpressure.enabled", "true") \
         .load();
 
     # Show schema for the incoming resources for checks
@@ -52,7 +60,9 @@ def run_spark_job(spark):
     service_table.printSchema()
     
     # TODO select original_crime_type_name and disposition
-    distinct_table = service_table.select(["original_crime_type_name", "disposition"]) 
+    distinct_table = service_table \
+                     .withWatermark("call_date_time", "60 minutes") \
+                     .select(["original_crime_type_name", "disposition"]) 
 
     
     # count the number of original crime type
@@ -64,12 +74,12 @@ def run_spark_job(spark):
                   .outputMode("complete")\
                   .format("console")\
                   .option("truncate", "false")\
-                  .trigger(processingTime='10 seconds')\
+                  .trigger(processingTime=PROCESSING_TIME)\
                   .start()
 
 
     # TODO attach a ProgressReporter
-#     query.awaitTermination()
+#     print(query.lastProgress)
 
 #     # TODO get the right radio code json path
     radio_code_json_filepath = "radio_code.json"
@@ -89,7 +99,7 @@ def run_spark_job(spark):
                        .outputMode("append")\
                        .format("console")\
                        .option("truncate", "false")\
-                       .trigger(processingTime='10 seconds')\
+                       .trigger(processingTime=PROCESSING_TIME)\
                        .start()
 
     query.awaitTermination()
@@ -104,6 +114,7 @@ if __name__ == "__main__":
         .builder \
         .master("local[*]") \
         .appName("KafkaSparkStructuredStreaming") \
+        .config("spark.ui.port", "3000") \
         .getOrCreate()
 
     spark.sparkContext.setLogLevel("WARN")
@@ -113,3 +124,4 @@ if __name__ == "__main__":
     run_spark_job(spark)
 
     spark.stop()
+
