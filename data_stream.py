@@ -42,8 +42,6 @@ def run_spark_job(spark):
         .option("startingOffsets", "earliest") \
         .option("maxOffsetsPerTrigger", 200) \
         .option("stopGracefullyOnShutdown", "true") \
-        .option("maxRatePerPartition", 10) \
-        .option("backpressure.enabled", "true") \
         .load();
 
     # Show schema for the incoming resources for checks
@@ -62,11 +60,20 @@ def run_spark_job(spark):
     # TODO select original_crime_type_name and disposition
     distinct_table = service_table \
                      .withWatermark("call_date_time", "60 minutes") \
-                     .select(["original_crime_type_name", "disposition"]) 
+                     .select(
+                        ["call_date_time", "original_crime_type_name", "disposition"])
+    
 
     
     # count the number of original crime type
-    agg_df = distinct_table.groupby("original_crime_type_name").count()
+    agg_df = distinct_table.groupby(
+                                psf.window("call_date_time", "60 minutes"),
+                                psf.col("original_crime_type_name")
+                                ) \
+                           .count() \
+                           .orderBy("count", ascending=False)
+
+
 
     # TODO Q1. Submit a screen shot of a batch ingestion of the aggregation
     # TODO write output stream
@@ -80,6 +87,8 @@ def run_spark_job(spark):
 
     # TODO attach a ProgressReporter
 #     print(query.lastProgress)
+    query.awaitTermination()
+
 
 #     # TODO get the right radio code json path
     radio_code_json_filepath = "radio_code.json"
@@ -102,7 +111,6 @@ def run_spark_job(spark):
                        .trigger(processingTime=PROCESSING_TIME)\
                        .start()
 
-    query.awaitTermination()
     join_query.awaitTermination()
 
 
